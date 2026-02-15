@@ -1,11 +1,7 @@
 package com.vodokanal.customerbot.service;
 
-import com.vodokanal.customerbot.dto.DatabaseRequestDto;
-import com.vodokanal.customerbot.dto.DatabaseResponseDto;
-import com.vodokanal.customerbot.enums.Operation;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 @Component

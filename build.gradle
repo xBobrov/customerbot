@@ -27,6 +27,7 @@ dependencies {
     implementation 'org.telegram:telegrambots-client:9.2.0'
     implementation 'org.telegram:telegrambots-springboot-longpolling-starter:9.2.0'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 }
 
 tasks.named('test') {
