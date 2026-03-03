@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 
 @Service
 public class MappingUtil {
@@ -29,6 +30,15 @@ public class MappingUtil {
     public <T> T mapJsonToObject(String json, Class<T> clazz) {
         try {
             return objectMapper.readValue(json, clazz);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<HashMap<String, String>> mapJsonToHashMapList(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<HashMap<String, String>>>() {
+            });
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

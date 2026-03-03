@@ -1,9 +1,9 @@
 package com.vodokanal.customerbot.enums;
 
 public enum Operation {
-    BINDING_ID("binding_id"),
+    BIND_ID("binding_id"),
     START("start"),
-    ADD_METER("add_meter");
+    METER_INFO("meter_info");
 
     private final String operation;
 

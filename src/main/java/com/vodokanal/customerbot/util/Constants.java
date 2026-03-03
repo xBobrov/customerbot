@@ -1,14 +1,16 @@
 package com.vodokanal.customerbot.util;
 
 public final class Constants {
-    public static final String FGIS_URL = "https://fgis.gost.ru/fundmetrology/eapi/vri";
-    public static final String FGIS_REQUEST_STRING = "?verification_date=%s&mi_number=%s&mit_number=63458-16";
-
     public static final String MESSAGE_WELCOME = "Добро пожаловать в телеграм бот АО \"Водоканал\"";
-    public static final String MESSAGE_MENU = "Ваш лицевой счет: %s \nТекущий баланс: %s руб\nВыберите действие:";
+    public static final String MESSAGE_MENU = "Ваш лицевой счет: %s\nТекущий баланс: %s руб\n" +
+            "Email: %s\n Выберите действие:";
 
-    public static final String MESSAGE_METER_CHECK_FAIL = "ИПУ не обнаружен во ФГИС \"Аршин\"." +
-            " Проверьте правильность введеных данных. Если они верны, обратитесь в абонентский отдел АО \"Водоканал\"";
+    public static final String MESSAGE_BUTTON_EMAIL_ADD = "Привязать email";
+    public static final String MESSAGE_BUTTON_EMAIL_CHANGE = "Изменить email";
+
+
+    public static final String MESSAGE_METER_DATA = "ИПУ №: %s\nУслуга: %s\nПоследние переданные показания: %s\n" +
+            "Дата следующей поверки: %s";
     public static final String MESSAGE_METER_CHECK_EXIST = "ИПУ с таким номером уже привязан к Вашему лицевому счету";
     public static final String MESSAGE_METER_CHECK_SUCCESS = "ИПУ успешно привязан к Вашему лицевому счету";
 

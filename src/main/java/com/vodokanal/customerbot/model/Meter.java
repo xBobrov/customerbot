@@ -7,7 +7,7 @@ public class Meter {
     private String verificationDate;
     private BigDecimal initialValue;
     private int service;
-    private String expirationDate;
+    private String validThru;
 
     public int getService() {
         return service;
@@ -41,11 +41,11 @@ public class Meter {
         this.initialValue = initialValue;
     }
 
-    public String getExpirationDate() {
-        return expirationDate;
+    public String getValidThru() {
+        return validThru;
     }
 
-    public void setExpirationDate(String expirationDate) {
-        this.expirationDate = expirationDate;
+    public void setValidThru(String validThru) {
+        this.validThru = validThru;
     }
 }
