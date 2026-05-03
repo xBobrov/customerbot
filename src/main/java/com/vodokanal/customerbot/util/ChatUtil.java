@@ -6,23 +6,24 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.IntStream;
 
 @Service
 public class ChatUtil {
-    private final MappingUtil mappingUtil;
 
-    public ChatUtil(MappingUtil mappingUtil) {
-        this.mappingUtil = mappingUtil;
-    }
-
-    public boolean isDateFormatValid(String date) {
-        return date.matches("(19|20)\\d\\d-((0[1-9]|1[012])-(0[1-9]|[12]\\d)|(0[13-9]|1[012])-30|(0[13578]|1[02])-31)");
+    public boolean isMeterValueFormatValid(String value) {
+        return value.matches("^\\d+(\\.\\d{1,3})?$");
     }
 
     public boolean isAccountNumberFormatValid(String accountNumber) {
         return accountNumber.matches("\\d{4}-\\d{3}-\\d");
+    }
+
+    public boolean isEmailFormatValid(String email) {
+        return email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
     public SendMessage buildMessage(String text, long chatID) {
@@ -47,5 +48,15 @@ public class ChatUtil {
                 .toList();
 
         return new InlineKeyboardMarkup(keyboardRowList);
+    }
+
+    public boolean isDateValid() {
+        int currentDay = LocalDate.now().getDayOfMonth();
+
+        return currentDay >= Constants.READING_START_DAY && currentDay <= Constants.READING_END_DAY;
+    }
+
+    public boolean isCurrentValueValid(BigDecimal currentValue, BigDecimal lastReadingValue) {
+        return currentValue.compareTo(lastReadingValue) >= 0;
     }
 }
