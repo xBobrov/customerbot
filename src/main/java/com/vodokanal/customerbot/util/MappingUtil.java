@@ -11,6 +11,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Utility service for data conversion between JSON format and Java objects.
+ * <p>
+ * Utilizes the Jackson library for serializing RabbitMQ requests and
+ * deserializing responses from external systems.
+ * </p>
+ */
 @Service
 public class MappingUtil {
     private final ObjectMapper objectMapper;
@@ -20,6 +27,13 @@ public class MappingUtil {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Converts Java object into JSON string.
+     *
+     * @param object java object to serialize.
+     * @return JSON representation of the object.
+     * @throws RuntimeException if an error occurs while writing JSON.
+     */
     public String mapObjectToJson(Object object) {
         try {
             return objectMapper.writeValueAsString(object);
@@ -28,6 +42,13 @@ public class MappingUtil {
         }
     }
 
+    /**
+     * Converts JSON string into List of HashMaps.
+     *
+     * @param json JSON string.
+     * @return {@link List} of {@link HashMap}, where every Map represents one single entity.
+     * @throws RuntimeException If the JSON structure does not match the expected list of maps.
+     */
     public List<HashMap<String, String>> mapJsonToHashMapList(String json) {
         try {
             return objectMapper.readValue(json, new TypeReference<List<HashMap<String, String>>>() {
@@ -37,6 +58,13 @@ public class MappingUtil {
         }
     }
 
+    /**
+     * Converts JSON string into a HashMap.
+     *
+     * @param json JSON string.
+     * @return {@code  Map} with data or {@link Collections#emptyMap()}, if JSON is empty.
+     * @throws RuntimeException if deserialization error occurs.
+     */
     public Map<String, String> mapJsonToHashMap(String json) {
         if (json == null || json.isEmpty()) {
             return Collections.emptyMap();

@@ -1,10 +1,12 @@
 package com.vodokanal.customerbot.util;
 
+/**
+ * A class containing text of chatbot messages and constants.
+ */
 public final class Constants {
     public static final String MESSAGE_WELCOME = "Добро пожаловать в телеграм бот АО \"Водоканал\"";
     public static final String MESSAGE_MENU = "Ваш лицевой счет: %s\nEmail: %s\n Выберите действие:";
     public static final String MESSAGE_RESTART = "Что-то пошло не так. Пожалуйста отправте комманду /start";
-
 
     public static final String MESSAGE_BUTTON_EMAIL_CHANGE = "Изменить email";
     public static final String MESSAGE_ASK_EMAIL = "Введите адрес электронной почты. Если хотите отвязать адрес, " +

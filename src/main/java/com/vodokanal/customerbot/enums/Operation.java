@@ -1,5 +1,8 @@
 package com.vodokanal.customerbot.enums;
 
+/**
+ * Types of operation submitting into external system via RabbitMQ.
+ */
 public enum Operation {
     BIND_ID("binding_id"),
     START("start"),

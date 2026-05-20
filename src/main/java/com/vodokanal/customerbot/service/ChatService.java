@@ -18,6 +18,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The core service for managing dialogue logic and user
+ * states (Orchestrator).
+ * <p>
+ * The class manages user state transitions: from account
+ * registration to meter reading submission.
+ * </p>
+ * <p>
+ * Coordinates work of {@link UserService} for state storage
+ * and {@link IntegrationService} for data exchange with the
+ * external accounting system.
+ * </p>
+ */
 @Service
 public class ChatService {
     private final IntegrationService integrationService;
@@ -34,6 +47,15 @@ public class ChatService {
         this.userService = userService;
     }
 
+    /**
+     * Entry point for processing all incoming text messages.
+     * <p>
+     * Handles global commands (e.g., {@code /start}) and routes user input
+     * based on their current {@link UserState} received from {@link UserService}.
+     * </p>
+     *
+     * @param message the incoming Telegram message object.
+     */
     public void handleMessage(Message message) {
         long chatID = message.getChatId();
 
@@ -59,6 +81,21 @@ public class ChatService {
         }
     }
 
+    /**
+     * Validates meter readings and calculates consumption.
+     * <p>
+     * The method performs the following checks:
+     * <ul>
+     *     <li>Readings format correctness.</li>
+     *     <li>Logical validity (the current reading cannot be less than the previous one).</li>
+     * </ul>
+     * Upon successful validation, calculates the difference using {@code BigDecimal}
+     * and prepares the data for confirmation.
+     * </p>
+     *
+     * @param message meter reading string.
+     * @param user    current user object.
+     */
     private void verifyCurrentReading(Message message, User user) {
         String currentReadingText = message.getText();
         long chatID = message.getChatId();
@@ -90,6 +127,16 @@ public class ChatService {
         sendMessageKeyboarded(chatID, Constants.MESSAGE_READING_CONSUMPTION.formatted(consumption), buttonData);
     }
 
+    /**
+     * Provides meter number validation.
+     * <p>
+     * Checks if user-provided meter number is bound to user's account.
+     * In case of success shows meter information and proceeds to
+     * current reading value transmission.
+     *
+     * @param message message containing the meter serial number.
+     * @param user    current user object.
+     */
     private void verifyMeterNumber(Message message, User user) {
         String meterNumber = message.getText();
         long chatID = message.getChatId();
@@ -120,11 +167,32 @@ public class ChatService {
         askCurrentReading(chatID, user);
     }
 
+    /**
+     * Ask user for current value of metering devices and set relevant user state.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void askCurrentReading(long chatID, User user) {
         user.setUserState(UserState.ASKED_METER_CURRENT_READING);
         sendMessage(chatID, Constants.MESSAGE_ASK_CURRENT_VALUE);
     }
 
+    /**
+     * Provide updating user's Email address.
+     * <p>
+     * This method validates the provided input and coordinates with the {@link IntegrationService}
+     * to persist changes. It supports:
+     * <ul>
+     *     <li>Email address format correctness</li>
+     *     <li>Unlinking the current email if sent address string is "0".</li>
+     *     <li>Error if changing is impossible or address format is invalid.</li>
+     * </ul>
+     * </p>
+     *
+     * @param message message containing the new email address.
+     * @param user    the current user object.
+     */
     private void changeEmail(Message message, User user) {
         String email = message.getText();
         long chatID = message.getChatId();
@@ -154,18 +222,36 @@ public class ChatService {
             user.setUserState(UserState.START);
         }
     }
-
+    /**
+     * Sends a text message to the chat.
+     *
+     * @param chatID Telegram chat ID.
+     * @param messageText message to be sent.
+     */
     private void sendMessage(long chatID, String messageText) {
         SendMessage newMessage = chatUtil.buildMessage(messageText, chatID);
         replyProducer.executeReply(newMessage);
     }
 
+    /**
+     * Sends a message with an inline keyboard.
+     *
+     * @param chatID Telegram chat ID.
+     * @param messageText message to be sent.
+     * @param buttonData  array of button labels and callback data.
+     */
     private void sendMessageKeyboarded(long chatID, String messageText, String[] buttonData) {
         SendMessage newMessage = chatUtil.buildMessage(messageText, chatID);
         newMessage.setReplyMarkup(chatUtil.buildKeyboard(buttonData));
         replyProducer.executeReply(newMessage);
     }
 
+    /**
+     * Verifies account number and binds Telegram ID to it.
+     *
+     * @param message message containing the account number.
+     * @param user    the current user object.
+     */
     private void verifyAccountNumber(Message message, User user) {
         String accountNumber = message.getText();
         long chatID = message.getChatId();
@@ -190,6 +276,17 @@ public class ChatService {
         }
     }
 
+    /**
+     * Initializes the user session upon the {@code /start} command.
+     * <p>
+     * This method resets the user's state to {@link UserState#START} and synchronizes
+     * account data with the billing system. If Telegram ID is not bound
+     * to any account, it proceeds to the registration step. Otherwise, it
+     * displays the main menu.
+     * </p>
+     *
+     * @param chatID Telegram chat ID.
+     */
     private void start(long chatID) {
         User user = userService.findOrCreateUser(chatID);
         user.setUserState(UserState.START);
@@ -207,6 +304,17 @@ public class ChatService {
         }
     }
 
+    /**
+     * Displays the main menu.
+     * <p>
+     * It initializes an inline keyboard with available commands:
+     * meter list, reading submission, and email settings.
+     * </p>
+     *
+     * @param accountNumber account number.
+     * @param email         linked email address.
+     * @param chatID Telegram chat ID.
+     */
     private void sendMainMenu(String accountNumber, String email, long chatID) {
         if (email.isEmpty()) {
             email = Constants.MESSAGE_EMAIL_NOT_LINKED;
@@ -222,11 +330,29 @@ public class ChatService {
         sendMessageKeyboarded(chatID, messageText, buttonData);
     }
 
+    /**
+     * Initiates the registration process for new users.
+     * <p>
+     * Displays a welcome message and provides a registration
+     * button
+     * </p>
+     *
+     * @param chatID Telegram chat ID.
+     */
     private void register(long chatID) {
         String[] buttonData = new String[]{Constants.MESSAGE_BUTTON_BIND_ID, "bind_id"};
         sendMessageKeyboarded(chatID, Constants.MESSAGE_WELCOME, buttonData);
     }
 
+    /**
+     * Processes button clicks (callback queries).
+     * <p>
+     * Switches the dialogue context based on the action selected by the user
+     * (account binding, reading transmission, or meter list viewing).
+     * </p>
+     *
+     * @param callbackQuery the callback query event object from Telegram API.
+     */
     public void handleCallbackQuery(CallbackQuery callbackQuery) {
         String data = callbackQuery.getData();
         long chatID = callbackQuery.getMessage().getChatId();
@@ -244,6 +370,15 @@ public class ChatService {
         }
     }
 
+    /**
+     * Performs transmission of meter readings to the database.
+     * <p>
+     * Triggered after the user clicks the confirmation button.
+     * </p>
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void sendReading(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
@@ -261,6 +396,12 @@ public class ChatService {
         user.setUserState(UserState.START);
     }
 
+    /**
+     * Checks if current date is in regulated period for reading acceptance.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void checkDate(long chatID, User user) {
         if (!chatUtil.isDateValid()) {
             sendMessage(chatID, Constants.MESSAGE_READING_WRONG_DATE);
@@ -271,6 +412,12 @@ public class ChatService {
         askMeterNumber(chatID, user);
     }
 
+    /**
+     * Ask user for meter serial number and set relevant user state.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void askMeterNumber(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
@@ -281,6 +428,13 @@ public class ChatService {
         sendMessage(chatID, Constants.MESSAGE_ASK_METER_NUMBER);
     }
 
+
+    /**
+     * Ask user for Email address and set relevant user state.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void askEmail(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
@@ -291,10 +445,22 @@ public class ChatService {
         sendMessage(chatID, Constants.MESSAGE_ASK_EMAIL);
     }
 
+    /**
+     * Informs user of impossibility to perform requested
+     * action and suggests triggering {@code /start} command.
+     *
+     * @param chatID Telegram chat ID.
+     */
     private void askRestart(long chatID) {
         sendMessage(chatID, Constants.MESSAGE_RESTART);
     }
 
+    /**
+     * Shows the list of metering devices bounded to the account.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void displayMeters(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
@@ -315,6 +481,12 @@ public class ChatService {
         }
     }
 
+    /**
+     * Ask user for account number and set relevant user state.
+     *
+     * @param chatID Telegram chat ID.
+     * @param user    the current user object.
+     */
     private void askAccountNumber(long chatID, User user) {
         user.setUserState(UserState.ASKED_ACCOUNT_NUMBER);
         sendMessage(chatID, Constants.MESSAGE_ASK_ACCOUNT);
