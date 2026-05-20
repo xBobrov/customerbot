@@ -8,12 +8,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-
+/**
+ * A service for synchronous interaction with RabbitMQ queues.
+ * <p>
+ * Implements the Request-Response (RPC) pattern allowing JSON
+ * requests to be sent to an external system while awaiting
+ * processing results in blocking mode.
+ * </p>
+ */
 @Service
 public class RabbitMQMessageService {
     private final RabbitTemplate rabbitTemplate;
     private final Logger logger = LoggerFactory.getLogger(RabbitMQMessageService.class);
 
+    /** Queue name which the message is sent into. Set up in application.properties. */
     @Value("${rabbitmq.queue.name}")
     private String messageQueue;
 
@@ -22,6 +30,17 @@ public class RabbitMQMessageService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+    /**
+     * Sends JSON message into the queue and awaits JSON-response.
+     * <p>
+     * The method uses {@code convertSendAndReceive} which make request synchronous.
+     * If the response is not received within a set time the method returns {@code null}.
+     * </p>
+     *
+     * @param json JSON string containing request data.
+     * @return JSON response string or {@code null} in case of timeout.
+     * @throws AmqpException if a protocol-level or message broker error occurs.
+     */
     public String sendMessage(String json) {
         logger.info("Sending message to queue {}", messageQueue);
         logger.debug("Payload: {}", json);

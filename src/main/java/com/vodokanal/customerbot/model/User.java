@@ -2,13 +2,34 @@ package com.vodokanal.customerbot.model;
 
 import com.vodokanal.customerbot.enums.UserState;
 
+/**
+ * User data model representing its current state and session.
+ * <p>
+ * The Class is used for temporary data storage inputted by user in dialog
+ * (meter number, meter reading, account number) and also for tracking the
+ * current scenario step via {@link UserState}.
+ * </p>
+ */
 public class User {
+    /** Unique identifier of user chat in Telegram */
     private long chatID;
+
+    /** Current user state in chat */
     private UserState userState;
+
+    /** Email bound to user account */
     private String email;
+
+    /** Serial number of the metering device */
     private String meterNumber;
+
+    /** Value of previously submitted reading */
     private String lastReadingValue;
+
+    /** Value of current reading */
     private String currentReadingValue;
+
+    /** Value of resource consumed */
     private String consumption;
 
     public User(long chatID) {
@@ -61,5 +82,9 @@ public class User {
 
     public void setConsumption(String consumption) {
         this.consumption = consumption;
+    }
+
+    public long getChatID() {
+        return chatID;
     }
 }

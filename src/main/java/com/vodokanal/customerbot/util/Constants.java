@@ -2,8 +2,7 @@ package com.vodokanal.customerbot.util;
 
 public final class Constants {
     public static final String MESSAGE_WELCOME = "Добро пожаловать в телеграм бот АО \"Водоканал\"";
-    public static final String MESSAGE_MENU = "Ваш лицевой счет: %s\nТекущий баланс: %s руб\n" +
-            "Email: %s\n Выберите действие:";
+    public static final String MESSAGE_MENU = "Ваш лицевой счет: %s\nEmail: %s\n Выберите действие:";
     public static final String MESSAGE_RESTART = "Что-то пошло не так. Пожалуйста отправте комманду /start";
 
 
@@ -20,6 +19,9 @@ public final class Constants {
     public static final String MESSAGE_READING_WRONG_DATE = "Показания принимаются с 20 по 25 число включительно";
     public static final String MESSAGE_READING_CONSUMPTION = "Расход: %.3f м³";
     public static final String MESSAGE_READING_ACCEPTED = "Переданые показания ИПУ приняты в обработку.";
+    public static final String MESSAGE_READING_DENIED = "Что-то пошло не так. Попробуйте передать показания ИПУ позже " +
+            "или обратитесь в абонентский отдел АО \"Водоканал\"";
+
     public static final String MESSAGE_ASK_METER_NUMBER = "Введите номер ИПУ";
     public static final String MESSAGE_ASK_CURRENT_VALUE = "Введите текущие показания ИПУ. Дробная часть числа должна" +
             "быть отделена точкой и иметь не более трех знаков.";

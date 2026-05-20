@@ -1,6 +1,7 @@
 package com.vodokanal.customerbot.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -13,7 +14,8 @@ public class MappingUtilTest {
     private final MappingUtil mappingUtil = new MappingUtil(new ObjectMapper());
 
     @Test
-    public void shouldMapHashmapToJson() {
+    @DisplayName("Should create correct json from hashmap")
+    void shouldMapHashmapToJson() {
         Map<String, String> map = new HashMap<>();
         map.put("operation", "meter_validation");
         map.put("meterNumber", "987654");
@@ -27,7 +29,8 @@ public class MappingUtilTest {
     }
 
     @Test
-    public void shouldThrownExceptionWhenMapMapToJsonInvalid() {
+    @DisplayName("Should throw exception if hashmap is incorrect")
+    void shouldThrownExceptionWhenMapMapToJsonInvalid() {
         Map<Object, Object> map = new HashMap<>();
         map.put(new Object(), new Object());
 
@@ -36,7 +39,8 @@ public class MappingUtilTest {
     }
 
     @Test
-    public void shouldMapJsonToHashMap() {
+    @DisplayName("Should create correct hashmap from json")
+    void shouldMapJsonToHashMap() {
         String json = "[{\"number\":\"987654\"}, {\"service\":\"cold_water\"}]";
 
         List<HashMap<String, String>> result = mappingUtil.mapJsonToHashMapList(json);
@@ -47,7 +51,8 @@ public class MappingUtilTest {
     }
 
     @Test
-    public void shouldThrownExceptionWhenMapJsonToHashMapInvalid() {
+    @DisplayName("Should throw exception if json is incorrect")
+    void shouldThrownExceptionWhenMapJsonToHashMapInvalid() {
         String json = "not:json";
 
         assertThrows(RuntimeException.class, () ->

@@ -1,5 +1,6 @@
 package com.vodokanal.customerbot.util;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -12,24 +13,28 @@ public class ChatUtilTest {
     private final ChatUtil chatUtil = new ChatUtil();
 
     @ParameterizedTest
+    @DisplayName("Meter value format validation: correct format")
     @ValueSource(strings = {"9878", "9878.1", "9878.123", "0.1", "0"})
     void shouldReturnTrueIfMeterValueFormatValid(String value) {
         assertTrue(chatUtil.isMeterValueFormatValid(value), "Should be true for: " + value);
     }
 
     @ParameterizedTest
+    @DisplayName("Meter value format validation: incorrect format")
     @ValueSource(strings = {"xz78", "9878.1243", ".1243", "9878.", "9878,123", "-9878,123", ""})
     void shouldReturnFalseIfMeterValueFormatInvalid(String value) {
         assertFalse(chatUtil.isMeterValueFormatValid(value), "Should be false for: " + value);
     }
 
     @ParameterizedTest
+    @DisplayName("Account number validation: correct format")
     @ValueSource(strings = {"0123-456-7"})
     void shouldReturnTrueIfAccountNumberFormatValid(String value) {
         assertTrue(chatUtil.isAccountNumberFormatValid(value), "Should be true for: " + value);
     }
 
     @ParameterizedTest
+    @DisplayName("Account number validation: incorrect format")
     @ValueSource(strings = {
             "123-456-7",
             "12345-678-9",
@@ -44,6 +49,7 @@ public class ChatUtilTest {
     }
 
     @ParameterizedTest
+    @DisplayName("Email validation: correct format")
     @ValueSource(strings = {
             "simple@example.com",
             "user.name@domain.co.jp",
@@ -55,6 +61,7 @@ public class ChatUtilTest {
     }
 
     @ParameterizedTest
+    @DisplayName("Email validation: incorrect format")
     @ValueSource(strings = {
             "plainaddress",
             "@missing-login.com",
@@ -70,6 +77,7 @@ public class ChatUtilTest {
     }
 
     @ParameterizedTest
+    @DisplayName("Comparison of readings: current with previous")
     @CsvSource({
             "100.50, 100.49, true",
             "100.50, 100.50, true",

@@ -1,13 +1,14 @@
 package com.vodokanal.customerbot.service;
 
+import com.vodokanal.customerbot.model.User;
 import com.vodokanal.customerbot.util.ChatUtil;
 import com.vodokanal.customerbot.util.Constants;
-import com.vodokanal.customerbot.enums.Operation;
 import com.vodokanal.customerbot.enums.UserState;
-import com.vodokanal.customerbot.util.MappingUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
@@ -19,18 +20,16 @@ import java.util.Map;
 
 @Service
 public class ChatService {
-    private final RabbitMQMessageService rabbitMQMessageService;
+    private final IntegrationService integrationService;
     private final ReplyProducer replyProducer;
-    private final MappingUtil mappingUtil;
     private final ChatUtil chatUtil;
     private final UserService userService;
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
 
-    public ChatService(RabbitMQMessageService rabbitMQMessageService, ReplyProducer replyProducer,
-                       MappingUtil mappingUtil, ChatUtil chatUtil, UserService userService) {
-        this.rabbitMQMessageService = rabbitMQMessageService;
+    public ChatService(IntegrationService integrationService, ReplyProducer replyProducer,
+                       ChatUtil chatUtil, UserService userService) {
+        this.integrationService = integrationService;
         this.replyProducer = replyProducer;
-        this.mappingUtil = mappingUtil;
         this.chatUtil = chatUtil;
         this.userService = userService;
     }
@@ -43,70 +42,70 @@ public class ChatService {
             start(chatID);
 
             return;
-        } else if (message.getText().equals("/test")) {
-            logger.info("User {} triggered /test command", chatID);
-            sendMessage(chatID, "Kurlyk!!");
         }
 
         if (userService.isUserExist(chatID)) {
-            UserState currentUserState = userService.getUserState(chatID);
+            User user = userService.findOrCreateUser(chatID);
+            UserState currentUserState = user.getUserState();
 
             logger.info("User {} sent message: {}. User state: {}", chatID, message.getText(), currentUserState);
 
             switch (currentUserState) {
-                case UserState.ASKED_ACCOUNT_NUMBER -> verifyAccountNumber(message);
-                case UserState.ASKED_EMAIL -> changeEmail(message);
-                case UserState.ASKED_METER_NUMBER -> verifyMeterNumber(message);
-                case UserState.ASKED_METER_CURRENT_READING -> verifyCurrentReading(message);
+                case UserState.ASKED_ACCOUNT_NUMBER -> verifyAccountNumber(message, user);
+                case UserState.ASKED_EMAIL -> changeEmail(message, user);
+                case UserState.ASKED_METER_NUMBER -> verifyMeterNumber(message, user);
+                case UserState.ASKED_METER_CURRENT_READING -> verifyCurrentReading(message, user);
             }
         }
     }
 
-    private void verifyCurrentReading(Message message) {
+    private void verifyCurrentReading(Message message, User user) {
         String currentReadingText = message.getText();
         long chatID = message.getChatId();
 
         if (!chatUtil.isMeterValueFormatValid(currentReadingText)) {
+            logger.warn("User {} entered invalid format reading: {}", chatID, currentReadingText);
             sendMessage(chatID, Constants.MESSAGE_VALUE_WRONG_FORMAT);
-            askCurrentReading(chatID);
+            askCurrentReading(chatID, user);
+
             return;
         }
 
         BigDecimal currentReading = new BigDecimal(currentReadingText);
-        BigDecimal lastReading = new BigDecimal(userService.getLastReading(chatID));
+        BigDecimal lastReading = new BigDecimal(user.getLastReadingValue());
         BigDecimal consumption = currentReading.subtract(lastReading);
 
         if (!chatUtil.isCurrentValueValid(currentReading, lastReading)) {
+            logger.warn("User {} entered invalid reading: {} (previous was {})", chatID, currentReading, lastReading);
             sendMessage(chatID, Constants.MESSAGE_VALUE_INVALID);
-            askCurrentReading(chatID);
+            askCurrentReading(chatID, user);
+
             return;
         }
 
-        userService.setCurrentReading(chatID, currentReadingText);
-        userService.setConsumption(chatID, consumption.toPlainString());
+        user.setCurrentReadingValue(currentReadingText);
+        user.setConsumption(consumption.toPlainString());
 
         String[] buttonData = new String[]{Constants.MESSAGE_BUTTON_APPROVE, "approve_reading"};
         sendMessageKeyboarded(chatID, Constants.MESSAGE_READING_CONSUMPTION.formatted(consumption), buttonData);
     }
 
-    private void verifyMeterNumber(Message message) {
+    private void verifyMeterNumber(Message message, User user) {
         String meterNumber = message.getText();
         long chatID = message.getChatId();
 
-        Map<String, String> requestData = new HashMap<>();
-        requestData.put("operation", Operation.METER_VALIDATION.getOperation());
-        requestData.put("meterNumber", meterNumber);
-        requestData.put("chatID", String.valueOf(chatID));
+        Map<String, String> responseMap = integrationService.provideMeterValidation(meterNumber, chatID);
 
-        String response = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
-
-        if (response == null || response.isEmpty()) {
+        if (responseMap.isEmpty()) {
+            logger.warn("Meter validation failed for user {}: meter {} not found", chatID, meterNumber);
             sendMessage(chatID, Constants.MESSAGE_METER_NOT_FOUND);
-            askMeterNumber(chatID);
+            askMeterNumber(chatID, user);
+
             return;
         }
 
-        Map<String, String> responseMap = mappingUtil.mapJsonToHashMap(response);
+        logger.info("Meter validation success for user {}: meter service is {}", chatID, responseMap.get("service"));
+
         String serialNumber = responseMap.get("number");
         String service = responseMap.get("service");
         String lastReading = responseMap.get("lastReading");
@@ -115,48 +114,44 @@ public class ChatService {
         String messageText = Constants.MESSAGE_METER_DATA.formatted(serialNumber, service, lastReading, validThru);
         sendMessage(chatID, messageText);
 
-        userService.setMeterNumber(chatID, meterNumber);
-        userService.setLastReading(chatID, lastReading);
-        askCurrentReading(chatID);
+        user.setMeterNumber(meterNumber);
+        user.setLastReadingValue(lastReading);
+
+        askCurrentReading(chatID, user);
     }
 
-    private void askCurrentReading(long chatID) {
-        userService.setState(chatID, UserState.ASKED_METER_CURRENT_READING);
+    private void askCurrentReading(long chatID, User user) {
+        user.setUserState(UserState.ASKED_METER_CURRENT_READING);
         sendMessage(chatID, Constants.MESSAGE_ASK_CURRENT_VALUE);
     }
 
-    private void changeEmail(Message message) {
+    private void changeEmail(Message message, User user) {
         String email = message.getText();
         long chatID = message.getChatId();
 
-        Map<String, String> requestData = new HashMap<>();
-        requestData.put("operation", Operation.EMAIL_INFO.getOperation());
-        requestData.put("chatID", String.valueOf(chatID));
-
-        String savedEmail = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
+        String savedEmail = integrationService.provideEmailInfo(chatID);
 
         if (savedEmail == null || savedEmail.isEmpty() && email.equals("0")) {
+            logger.warn("Changing email failed for user {}, email is empty", chatID);
             sendMessage(chatID, Constants.MESSAGE_EMAIL_UNABLE_UNLINKED);
 
         } else if (!email.equals("0") && !chatUtil.isEmailFormatValid(email)) {
+            logger.warn("Changing email failed for user {}, email is invalid", chatID);
             sendMessage(chatID, Constants.MESSAGE_EMAIL_WRONG_FORMAT);
-            askEmail(chatID);
+            askEmail(chatID, user);
 
         } else {
-            requestData = new HashMap<>();
-            requestData.put("operation", Operation.CHANGE_EMAIL.getOperation());
-            requestData.put("email", email);
-            requestData.put("chatID", String.valueOf(chatID));
-
-            String response = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
+            String response = integrationService.provideEmailChanging(email, chatID);
 
             if (response.isEmpty()) {
+                logger.info("For user {} email is unlinked", chatID);
                 sendMessage(chatID, Constants.MESSAGE_EMAIL_UNLINKED);
             } else {
+                logger.info("For user {} email changed for {}", chatID, email);
                 sendMessage(chatID, Constants.MESSAGE_EMAIL_LINKED.formatted(response));
             }
 
-            userService.setState(chatID, UserState.START);
+            user.setUserState(UserState.START);
         }
     }
 
@@ -171,67 +166,53 @@ public class ChatService {
         replyProducer.executeReply(newMessage);
     }
 
-    private void verifyAccountNumber(Message message) {
+    private void verifyAccountNumber(Message message, User user) {
         String accountNumber = message.getText();
         long chatID = message.getChatId();
 
         if (!chatUtil.isAccountNumberFormatValid(accountNumber)) {
+            logger.warn("User {} entered wrong format account number: {}", chatID, accountNumber);
             sendMessage(chatID, Constants.MESSAGE_ACCOUNT_WRONG_FORMAT);
-            askAccountNumber(chatID);
+            askAccountNumber(chatID, user);
 
         } else {
-            Map<String, String> requestData = new HashMap<>();
-            requestData.put("operation", Operation.BIND_ID.getOperation());
-            requestData.put("accountNumber", accountNumber);
-            requestData.put("chatID", String.valueOf(chatID));
+            Map<String, String> accountData = integrationService.provideBindingID(accountNumber, chatID);
 
-            String response = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
-
-            if (response.isEmpty()) {
+            if (accountData.isEmpty()) {
+                logger.warn("User {} entered non-existent account number: {}", chatID, accountNumber);
                 sendMessage(chatID, Constants.MESSAGE_ACCOUNT_BIND_FAIL);
-
             } else {
                 sendMessage(chatID, Constants.MESSAGE_ACCOUNT_BIND_SUCCESS);
-
-                Map<String, String> responseMap = mappingUtil.mapJsonToHashMap(response);
-                String balance = responseMap.get("balance");
-                String email = responseMap.get("email");
-
-                userService.setEmail(chatID, email);  //? проверить на ошибки при перезагрузке сервера
-                sendMainMenu(accountNumber, balance, email, chatID);
+                String email = accountData.get("email");
+                user.setEmail(email);
+                sendMainMenu(accountNumber, email, chatID);
             }
         }
     }
 
     private void start(long chatID) {
-        userService.setState(chatID, UserState.START);
+        User user = userService.findOrCreateUser(chatID);
+        user.setUserState(UserState.START);
 
-        Map<String, String> requestData = new HashMap<>();
-        requestData.put("operation", Operation.START.getOperation());
-        requestData.put("chatID", String.valueOf(chatID));
+        Map<String, String> accountData = integrationService.provideStarting(chatID);
 
-        String response = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
-
-        if (response.isEmpty()) {
+        if (accountData.isEmpty()) {
             register(chatID);
-
         } else {
-            Map<String, String> responseMap = mappingUtil.mapJsonToHashMap(response);
-            String accountNumber = responseMap.get("number");
-            String balance = responseMap.get("balance");
-            String email = responseMap.get("email");
+            String accountNumber = accountData.get("number");
+            String email = accountData.get("email");
 
-            userService.setEmail(chatID, email);
-            sendMainMenu(accountNumber, balance, email, chatID);
+            user.setEmail(email);
+            sendMainMenu(accountNumber, email, chatID);
         }
     }
 
-    private void sendMainMenu(String accountNumber, String balance, String email, long chatID) {
+    private void sendMainMenu(String accountNumber, String email, long chatID) {
         if (email.isEmpty()) {
             email = Constants.MESSAGE_EMAIL_NOT_LINKED;
         }
 
-        String messageText = Constants.MESSAGE_MENU.formatted(accountNumber, balance, email);
+        String messageText = Constants.MESSAGE_MENU.formatted(accountNumber, email);
         String[] buttonData = new String[]{
                 Constants.MESSAGE_BUTTON_MY_METERS, "my_meters",
                 Constants.MESSAGE_BUTTON_SEND_READING, "send_reading",
@@ -249,69 +230,64 @@ public class ChatService {
     public void handleCallbackQuery(CallbackQuery callbackQuery) {
         String data = callbackQuery.getData();
         long chatID = callbackQuery.getMessage().getChatId();
+        User user = userService.findOrCreateUser(chatID);
 
         logger.info("User {} triggered {} command", chatID, data);
 
         switch (data) {
-            case "bind_id" -> askAccountNumber(chatID);
+            case "bind_id" -> askAccountNumber(chatID, user);
             case "return" -> start(chatID);
-            case "my_meters" -> displayMeters(chatID);
-            case "send_reading" -> checkDate(chatID);
-            case "change_email" -> askEmail(chatID);
-            case "approve_reading" -> sendReading(chatID);
+            case "my_meters" -> displayMeters(chatID, user);
+            case "send_reading" -> checkDate(chatID, user);
+            case "change_email" -> askEmail(chatID, user);
+            case "approve_reading" -> sendReading(chatID, user);
         }
     }
 
-    private void sendReading(long chatID) {
+    private void sendReading(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
             return;
         }
 
-        String meterNumber = userService.getMeterNumber(chatID);
-        String currentReading = userService.getCurrentReading(chatID);
-        String consumption = userService.getConsumption(chatID);
+        String dbRowsInserted = integrationService.provideReadingSubmission(chatID, user);
 
-        Map<String, String> requestData = new HashMap<>();
-        requestData.put("operation", Operation.READING_TRANSMIT.getOperation());
-        requestData.put("chatID", String.valueOf(chatID));
-        requestData.put("meterNumber", meterNumber);
-        requestData.put("currentReading", currentReading);
-        requestData.put("consumption", consumption);
+        if (dbRowsInserted.equals("0")) {
+            sendMessage(chatID, Constants.MESSAGE_READING_DENIED);
+        } else {
+            sendMessage(chatID, Constants.MESSAGE_READING_ACCEPTED);
+        }
 
-        rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
-
-        sendMessage(chatID, Constants.MESSAGE_READING_ACCEPTED);
-        userService.setState(chatID, UserState.START);
+        user.setUserState(UserState.START);
     }
 
-    private void checkDate(long chatID) {
+    private void checkDate(long chatID, User user) {
         if (!chatUtil.isDateValid()) {
             sendMessage(chatID, Constants.MESSAGE_READING_WRONG_DATE);
-            userService.setState(chatID, UserState.START);
+            user.setUserState(UserState.START);
             return;
         }
 
-        askMeterNumber(chatID);
+        askMeterNumber(chatID, user);
     }
 
-    private void askMeterNumber(long chatID) {
+    private void askMeterNumber(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
             return;
         }
 
-        userService.setState(chatID, UserState.ASKED_METER_NUMBER);
+        user.setUserState(UserState.ASKED_METER_NUMBER);
         sendMessage(chatID, Constants.MESSAGE_ASK_METER_NUMBER);
     }
 
-    private void askEmail(long chatID) {
+    private void askEmail(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
             return;
         }
 
-        userService.setState(chatID, UserState.ASKED_EMAIL);
+        user.setUserState(UserState.ASKED_EMAIL);
         sendMessage(chatID, Constants.MESSAGE_ASK_EMAIL);
     }
 
@@ -319,21 +295,15 @@ public class ChatService {
         sendMessage(chatID, Constants.MESSAGE_RESTART);
     }
 
-    private void displayMeters(long chatID) {
+    private void displayMeters(long chatID, User user) {
         if (!userService.isUserExist(chatID)) {
             askRestart(chatID);
             return;
         }
 
-        userService.setState(chatID, UserState.START);
+        user.setUserState(UserState.START);
 
-        Map<String, String> requestData = new HashMap<>();
-        requestData.put("operation", Operation.METER_INFO.getOperation());
-        requestData.put("chatID", String.valueOf(chatID));
-
-        String response = rabbitMQMessageService.sendMessage(mappingUtil.mapObjectToJson(requestData));
-        List<HashMap<String, String>> meterDataList = mappingUtil.mapJsonToHashMapList(response);
-
+        List<HashMap<String, String>> meterDataList = integrationService.provideMeterInfo(chatID);
         for (HashMap<String, String> meterData : meterDataList) {
             String serialNumber = meterData.get("number");
             String service = meterData.get("service");
@@ -345,9 +315,8 @@ public class ChatService {
         }
     }
 
-    private void askAccountNumber(long chatID) {
-
-        userService.setState(chatID, UserState.ASKED_ACCOUNT_NUMBER);
+    private void askAccountNumber(long chatID, User user) {
+        user.setUserState(UserState.ASKED_ACCOUNT_NUMBER);
         sendMessage(chatID, Constants.MESSAGE_ASK_ACCOUNT);
     }
 }
