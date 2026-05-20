@@ -208,7 +208,7 @@ public class ChatServiceTest {
     }
 
     @Test
-    @DisplayName("Sent current reading lower than previous one: reject acception")
+    @DisplayName("Sent current reading lower than previous one: reject acceptance")
     void shouldFailReadingVerification() {
         //given
         String currentReading = "123.456";
