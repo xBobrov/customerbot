@@ -1,8 +1,8 @@
 # Бот клиентской поддержки «Водоканал» (Pet-project)
 
-![Java](https://img.icons8.com/?size=60&id=13679&format=png)
-![Spring Boot](https://img.icons8.com/?size=60&id=90519&format=png)
-![RabbitMQ](https://shields.io)
+![Java](https://www.java.com/)![](https://img.icons8.com/?size=60&id=13679&format=png)
+![Spring Boot](https://img.icons8.com/?size=50&id=90519&format=png)
+![RabbitMQ](https://images.icon-icons.com/2699/PNG/512/rabbitmq_logo_icon_170812.png)
 ![Docker](https://shields.io)
 
 Телеграм-бот для автоматизации подачи показаний счетчиков и управления лицевым счетом абонента. Проект разработан как демонстрация навыков построения **отказоустойчивой микросервисной архитектуры**.
