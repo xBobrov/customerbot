@@ -22,5 +22,4 @@ RUN chown customerbot:customerbot app.jar
 
 USER customerbot:customerbot
 
-# Ограничиваем память, чтобы Java знала, что она в контейнере
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-jar", "app.jar"]
