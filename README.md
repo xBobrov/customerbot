@@ -1,7 +1,7 @@
 # Бот клиентской поддержки «Водоканал» (Pet-project)
 
-![Java](https://shields.io)
-![Spring Boot](https://shields.io)
+![Java](https://img.icons8.com/?size=60&id=13679&format=png)
+![Spring Boot](https://img.icons8.com/?size=60&id=90519&format=png)
 ![RabbitMQ](https://shields.io)
 ![Docker](https://shields.io)
 
