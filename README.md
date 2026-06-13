@@ -43,16 +43,65 @@
 
 ![Схема микросервисной архетиктуры](https://github.com/xBobrov/customerbot/blob/master/assets/project_scheme.png)
 
-### Локальный запуск (Docker)
-1. Склонируйте репозиторий.
-2. Создайте переменную окружения с токеном вашего бота:
-   ```bash
-   export TELEGRAM_BOT_TOKEN=your_token_here
-   ```
-3. Запустите контейнеры:
-   ```bash
-   docker-compose up --build
-   ```
+### Docker-compose для одновременного запуска микросервисов
+
+```yml
+services:
+  # База данных PostgreSQL
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: vodokanal
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d crud_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Очередь сообщений RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # CRUD Сервис (Maven) (https://github.com/xBobrov/accounting)
+  accounting:
+    build:
+      context: ./accounting # Путь к папке с CRUD проектом
+    container_name: accounting
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/vodokanal
+      SPRING_RABBITMQ_HOST: rabbitmq
+
+  # Telegram Бот (Gradle) (данный проект)
+  customerbot:
+    build:
+      context: ./customerbot # Путь к папке с Telegram-bot проектом 
+    container_name: customerbot
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      TELEGRAM_BOT_TOKEN: "***" # Токен Telegram
+```
 
 ## 📝 Структура кода
 ```text
