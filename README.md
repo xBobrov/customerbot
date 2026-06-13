@@ -43,7 +43,7 @@
 
 ![Схема микросервисной архетиктуры](https://github.com/xBobrov/customerbot/blob/master/assets/project_scheme.png)
 
-### Docker-compose для одновременного запуска микросервисов
+### Docker-compose для полной информационной системы
 
 ```yml
 services:
