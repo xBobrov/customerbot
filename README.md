@@ -57,6 +57,8 @@ services:
       POSTGRES_DB: vodokanal
     ports:
       - "5432:5432"
+    volumes:
+      - ./src/main/resources/db_backup.sql:/docker-entrypoint-initdb.d/01-init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d crud_db"]
       interval: 5s
@@ -81,6 +83,8 @@ services:
     build:
       context: ./accounting # Путь к папке с CRUD проектом
     container_name: accounting
+    ports:
+      - "8080:8080"
     depends_on:
       postgres-db:
         condition: service_healthy
